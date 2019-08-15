@@ -1,3 +1,5 @@
+// Copyright 2019 Xu Xu. All rights reserved.
+
 // Copyright 2017 Joshua J Baker. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
@@ -50,6 +52,7 @@ func (p *Poll) Trigger(note interface{}) error {
 
 // Wait ...
 func (p *Poll) Wait(iter func(fd int, note interface{}) error) error {
+	buf := make([]byte, 8)
 	events := make([]syscall.EpollEvent, 64)
 	for {
 		n, err := syscall.EpollWait(p.fd, events, -1)
@@ -67,7 +70,13 @@ func (p *Poll) Wait(iter func(fd int, note interface{}) error) error {
 					return err
 				}
 			} else {
-
+				n, err := syscall.Read(p.wfd, buf)
+				if err != nil {
+					panic(err)
+				}
+				if n != 8 {
+					panic("expect n = 8")
+				}
 			}
 		}
 	}
