@@ -347,25 +347,6 @@ func TestBadAddresses(t *testing.T) {
 	}
 }
 
-func TestInputStream(t *testing.T) {
-	var s InputStream
-	in := []byte("HELLO")
-	data := s.Begin(in)
-	if string(data) != string(in) {
-		t.Fatalf("expected '%v', got '%v'", in, data)
-	}
-	s.End(in[3:])
-	data = s.Begin([]byte("WLY"))
-	if string(data) != "LOWLY" {
-		t.Fatalf("expected '%v', got '%v'", "LOWLY", data)
-	}
-	s.End(nil)
-	data = s.Begin([]byte("PLAYER"))
-	if string(data) != "PLAYER" {
-		t.Fatalf("expected '%v', got '%v'", "PLAYER", data)
-	}
-}
-
 func TestReuseport(t *testing.T) {
 	var events Events
 	events.Serving = func(s Server) (action Action) {
