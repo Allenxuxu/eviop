@@ -7,7 +7,6 @@
 package eviop
 
 import (
-	"io"
 	"net"
 	"os"
 	"strings"
@@ -20,8 +19,6 @@ type Action int
 const (
 	// None indicates that no action should occur following an event.
 	None Action = iota
-	// Detach detaches a connection. Not available for UDP connections.
-	Detach
 	// Close closes the connection.
 	Close
 	// Shutdown shutdowns the server.
@@ -85,14 +82,6 @@ type Events struct {
 	// Closed fires when a connection has closed.
 	// The err parameter is the last known connection error.
 	Closed func(c *Conn, err error) (action Action)
-	// Detached fires when a connection has been previously detached.
-	// Once detached it's up to the receiver of this event to manage the
-	// state of the connection. The Closed event will not be called for
-	// this connection.
-	// The conn parameter is a ReadWriteCloser that represents the
-	// underlying socket connection. It can be freely used in goroutines
-	// and should be closed when it's no longer needed.
-	Detached func(c *Conn, rwc io.ReadWriteCloser) (action Action)
 	// PreWrite fires just before any data is written to any client socket.
 	PreWrite func()
 	// Data fires when a connection sends the server data.

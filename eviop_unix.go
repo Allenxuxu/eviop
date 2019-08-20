@@ -172,25 +172,6 @@ func loopCloseConn(s *server, l *loop, c *Conn, err error) error {
 	return nil
 }
 
-func loopDetachConn(s *server, l *loop, c *Conn, err error) error {
-	if s.events.Detached == nil {
-		return loopCloseConn(s, l, c, err)
-	}
-	l.poll.ModDetach(c.fd)
-
-	atomic.AddInt32(&l.count, -1)
-	delete(l.fdconns, c.fd)
-	if err := syscall.SetNonblock(c.fd, false); err != nil {
-		return err
-	}
-	switch s.events.Detached(c, &detachedConn{fd: c.fd}) {
-	case None:
-	case Shutdown:
-		return errClosing
-	}
-	return nil
-}
-
 func loopNote(s *server, l *loop, note interface{}) error {
 	var err error
 	switch v := note.(type) {
@@ -418,8 +399,6 @@ func loopAction(s *server, l *loop, c *Conn) error {
 		return loopCloseConn(s, l, c, nil)
 	case Shutdown:
 		return errClosing
-	case Detach:
-		return loopDetachConn(s, l, c, nil)
 	}
 	if c.outBuffer.Length() == 0 && c.action == None {
 		l.poll.ModRead(c.fd)
