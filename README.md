@@ -1,5 +1,7 @@
 # eviop 
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/8c65a000618048e3a453bb59a2207663)](https://app.codacy.com/app/Allenxuxu/eviop?utm_source=github.com&utm_medium=referral&utm_content=Allenxuxu/eviop&utm_campaign=Badge_Grade_Settings)
+
 `eviop` 是一个快速、轻便的事件循环网络框架。
 
 它使用直接的 epoll 和 kqueue 系统调用，而不是使用标准的 Go net 包，并且以与 libuv 和 libevent 类似的方式工作。
