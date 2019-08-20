@@ -10,7 +10,6 @@ package eviop
 
 import (
 	"errors"
-	"io"
 	"net"
 	"os"
 	"runtime"
@@ -27,59 +26,6 @@ import (
 
 var errClosing = errors.New("closing")
 var errCloseConns = errors.New("close conns")
-
-type Conn struct {
-	fd         int                    // file descriptor
-	lnidx      int                    // listener index in the server lns list
-	outBuffer  *ringbuffer.RingBuffer // write buffer
-	inBuffer   *ringbuffer.RingBuffer
-	sa         syscall.Sockaddr // remote socket address
-	opened     bool             // connection opened event fired
-	toClose    AtomicBool
-	action     Action      // next user action
-	ctx        interface{} // user-defined context
-	addrIndex  int         // index of listening address
-	localAddr  net.Addr    // local addre
-	remoteAddr net.Addr    // remote addr
-	activeTime int64       // Last received message time
-	loop       *loop       // connected loop
-}
-
-func (c *Conn) Send(buf []byte) {
-	n, err := syscall.Write(c.fd, buf)
-	if err != nil {
-		_, _ = c.outBuffer.Write(buf)
-		return
-	}
-
-	if n < len(buf) {
-		_, _ = c.outBuffer.Write(buf[n:])
-	}
-}
-func (c *Conn) Read(buf []byte) (int, error) { return c.inBuffer.Read(buf) }
-func (c *Conn) ReadAll() []byte {
-	ret := c.inBuffer.Bytes()
-	c.inBuffer.RetrieveAll()
-	return ret
-}
-func (c *Conn) ReadLength() int             { return c.inBuffer.Length() }
-func (c *Conn) Peek(n int) ([]byte, []byte) { return c.inBuffer.Peek(n) }
-func (c *Conn) PeekAll() ([]byte, []byte)   { return c.inBuffer.PeekAll() }
-func (c *Conn) Retrieve(n int)              { c.inBuffer.Retrieve(n) }
-func (c *Conn) RetrieveAll()                { c.inBuffer.RetrieveAll() }
-
-func (c *Conn) Context() interface{}       { return c.ctx }
-func (c *Conn) SetContext(ctx interface{}) { c.ctx = ctx }
-func (c *Conn) AddrIndex() int             { return c.addrIndex }
-func (c *Conn) LocalAddr() net.Addr        { return c.localAddr }
-func (c *Conn) RemoteAddr() net.Addr       { return c.remoteAddr }
-func (c *Conn) setActiveTime(t time.Time)  { atomic.SwapInt64(&c.activeTime, t.Unix()) }
-func (c *Conn) getActiveTime() time.Time   { return time.Unix(atomic.LoadInt64(&c.activeTime), 0) }
-func (c *Conn) Wake() {
-	if c.loop != nil {
-		_ = c.loop.poll.Trigger(c)
-	}
-}
 
 type server struct {
 	events      Events             // user events
@@ -515,45 +461,6 @@ func loopRead(s *server, l *loop, c *Conn) error {
 		l.poll.ModReadWrite(c.fd)
 	}
 	return nil
-}
-
-type detachedConn struct {
-	fd int
-}
-
-func (c *detachedConn) Close() error {
-	err := syscall.Close(c.fd)
-	if err != nil {
-		return err
-	}
-	c.fd = -1
-	return nil
-}
-
-func (c *detachedConn) Read(p []byte) (n int, err error) {
-	n, err = syscall.Read(c.fd, p)
-	if err != nil {
-		return n, err
-	}
-	if n == 0 {
-		if len(p) == 0 {
-			return 0, nil
-		}
-		return 0, io.EOF
-	}
-	return n, nil
-}
-
-func (c *detachedConn) Write(p []byte) (n int, err error) {
-	n = len(p)
-	for len(p) > 0 {
-		nn, err := syscall.Write(c.fd, p)
-		if err != nil {
-			return n, err
-		}
-		p = p[nn:]
-	}
-	return n, nil
 }
 
 func (ln *listener) close() {
