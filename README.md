@@ -1,6 +1,9 @@
 # eviop 
 
+[![LICENSE](https://img.shields.io/badge/LICENSE-MIT-blue)](https://github.com/Allenxuxu/eviop/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Allenxuxu/eviop)](https://goreportcard.com/report/github.com/Allenxuxu/eviop)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/8c65a000618048e3a453bb59a2207663)](https://app.codacy.com/app/Allenxuxu/eviop?utm_source=github.com&utm_medium=referral&utm_content=Allenxuxu/eviop&utm_campaign=Badge_Grade_Settings)
+[![Repo Size](https://img.shields.io/github/repo-size/Allenxuxu/eviop.svg?style=flat)](https://img.shields.io/github/repo-size/Allenxuxu/eviop.svg?style=flat)
 
 `eviop` 是一个快速、轻便的事件循环网络框架。
 
