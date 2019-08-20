@@ -163,6 +163,7 @@ func loopCloseConn(s *server, l *loop, c *Conn, err error) error {
 	delete(l.fdconns, c.fd)
 	_ = syscall.Close(c.fd)
 	if s.events.Closed != nil {
+		// TODO 关闭前处理未发送数据
 		switch s.events.Closed(c, err) {
 		case None:
 		case Shutdown:
@@ -219,8 +220,6 @@ func loopRun(s *server, l *loop) {
 			return loopOpened(s, l, c)
 		case c.outBuffer.Length() > 0:
 			return loopWrite(s, l, c)
-		case c.action != None:
-			return loopAction(s, l, c)
 		default:
 			return loopRead(s, l, c)
 		}
@@ -345,18 +344,18 @@ func loopOpened(s *server, l *loop, c *Conn) error {
 	c.localAddr = s.lns[c.lnidx].lnaddr
 	c.remoteAddr = internal.SockaddrToAddr(c.sa)
 	if s.events.Opened != nil {
-		opts, action := s.events.Opened(c)
-		c.action = action
+		var opts Options
+		opts, c.action = s.events.Opened(c)
 		if opts.TCPKeepAlive > 0 {
 			if _, ok := s.lns[c.lnidx].ln.(*net.TCPListener); ok {
 				_ = internal.SetKeepAlive(c.fd, int(opts.TCPKeepAlive/time.Second))
 			}
 		}
 	}
-	if c.outBuffer.Length() == 0 && c.action == None {
+	if c.outBuffer.Length() == 0 {
 		l.poll.ModRead(c.fd)
 	}
-	return nil
+	return handlerAction(s, l, c)
 }
 
 func loopWrite(s *server, l *loop, c *Conn) error {
@@ -385,13 +384,13 @@ func loopWrite(s *server, l *loop, c *Conn) error {
 		c.outBuffer.Retrieve(n)
 	}
 
-	if c.outBuffer.Length() == 0 && c.action == None {
+	if c.outBuffer.Length() == 0 {
 		l.poll.ModRead(c.fd)
 	}
 	return nil
 }
 
-func loopAction(s *server, l *loop, c *Conn) error {
+func handlerAction(s *server, l *loop, c *Conn) error {
 	switch c.action {
 	default:
 		c.action = None
@@ -399,9 +398,6 @@ func loopAction(s *server, l *loop, c *Conn) error {
 		return loopCloseConn(s, l, c, nil)
 	case Shutdown:
 		return errClosing
-	}
-	if c.outBuffer.Length() == 0 && c.action == None {
-		l.poll.ModRead(c.fd)
 	}
 	return nil
 }
@@ -414,11 +410,11 @@ func loopWake(s *server, l *loop, c *Conn) error {
 
 	if s.events.Data != nil {
 		c.action = s.events.Data(c)
-		if c.outBuffer.Length() != 0 || c.action != None {
+		if c.outBuffer.Length() != 0 {
 			l.poll.ModReadWrite(c.fd)
 		}
 	}
-	return nil
+	return handlerAction(s, l, c)
 }
 
 func loopRead(s *server, l *loop, c *Conn) error {
@@ -436,10 +432,10 @@ func loopRead(s *server, l *loop, c *Conn) error {
 	if s.events.Data != nil {
 		c.action = s.events.Data(c)
 	}
-	if c.outBuffer.Length() != 0 || c.action != None {
+	if c.outBuffer.Length() != 0 {
 		l.poll.ModReadWrite(c.fd)
 	}
-	return nil
+	return handlerAction(s, l, c)
 }
 
 func (ln *listener) close() {
