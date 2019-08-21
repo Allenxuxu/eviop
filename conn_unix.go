@@ -10,6 +10,7 @@ package eviop
 
 import (
 	"net"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -18,23 +19,40 @@ import (
 )
 
 type Conn struct {
-	fd         int                    // file descriptor
-	lnidx      int                    // listener index in the server lns list
-	outBuffer  *ringbuffer.RingBuffer // write buffer
-	inBuffer   *ringbuffer.RingBuffer
-	sa         syscall.Sockaddr // remote socket address
-	opened     bool             // connection opened event fired
-	toClose    AtomicBool
-	action     Action      // next user action
-	ctx        interface{} // user-defined context
-	addrIndex  int         // index of listening address
-	localAddr  net.Addr    // local addre
-	remoteAddr net.Addr    // remote addr
-	activeTime int64       // Last received message time
-	loop       *loop       // connected loop
+	fd          int                    // file descriptor
+	lnidx       int                    // listener index in the server lns list
+	outBuffer   *ringbuffer.RingBuffer // write buffer
+	inBuffer    *ringbuffer.RingBuffer
+	sa          syscall.Sockaddr // remote socket address
+	opened      bool             // connection opened event fired
+	toClose     AtomicBool
+	action      Action      // next user action
+	ctx         interface{} // user-defined context
+	addrIndex   int         // index of listening address
+	localAddr   net.Addr    // local addre
+	remoteAddr  net.Addr    // remote addr
+	activeTime  int64       // Last received message time
+	loop        *loop       // connected loop
+	pendingFunc []func()
+	mu          sync.Mutex
+}
+
+func (c *Conn) Send(buf []byte) {
+	c.mu.Lock()
+	c.pendingFunc = append(c.pendingFunc, func() {
+		c.send(buf)
+	})
+	c.mu.Unlock()
+
+	c.Wake()
 }
 
 func (c *Conn) send(buf []byte) {
+	if c.outBuffer.Length() > 0 {
+		_, _ = c.outBuffer.Write(buf)
+		return
+	}
+
 	n, err := syscall.Write(c.fd, buf)
 	if err != nil {
 		_, _ = c.outBuffer.Write(buf)

@@ -292,3 +292,100 @@ func TestReuseport(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestConn_Send(t *testing.T) {
+	t.Run("poll", func(t *testing.T) {
+		t.Run("tcp", func(t *testing.T) {
+			t.Run("1-loop", func(t *testing.T) {
+				testSendServe("tcp", ":9991", false, 10, 1, Random)
+			})
+			t.Run("5-loop", func(t *testing.T) {
+				testSendServe("tcp", ":9992", false, 10, 5, LeastConnections)
+			})
+			t.Run("N-loop", func(t *testing.T) {
+				testSendServe("tcp", ":9993", false, 10, -1, RoundRobin)
+			})
+		})
+		t.Run("unix", func(t *testing.T) {
+			t.Run("1-loop", func(t *testing.T) {
+				testSendServe("tcp", ":9994", true, 10, 1, Random)
+			})
+			t.Run("5-loop", func(t *testing.T) {
+				testSendServe("tcp", ":9995", true, 10, 5, LeastConnections)
+			})
+			t.Run("N-loop", func(t *testing.T) {
+				testSendServe("tcp", ":9996", true, 10, -1, RoundRobin)
+			})
+		})
+	})
+}
+
+func testSendServe(network, addr string, unix bool, nclients, nloops int, balance LoadBalance) {
+	var started int32
+	var connected int32
+	var disconnected int32
+
+	var events Events
+	events.LoadBalance = balance
+	events.NumLoops = nloops
+	events.Serving = func(srv Server) (action Action) {
+		return
+	}
+	events.Opened = func(c *Conn) (out []byte, opts Options, action Action) {
+		c.SetContext(c)
+		atomic.AddInt32(&connected, 1)
+		// 只是为了测试， c.Send 不应该在此处使用
+		go c.Send([]byte("sweetness\r\n"))
+
+		opts.TCPKeepAlive = time.Minute * 5
+		if c.LocalAddr() == nil {
+			panic("nil local addr")
+		}
+		if c.RemoteAddr() == nil {
+			panic("nil local addr")
+		}
+		return
+	}
+	events.Closed = func(c *Conn, err error) (action Action) {
+		if c.Context() != c {
+			panic("invalid context")
+		}
+		atomic.AddInt32(&disconnected, 1)
+		if atomic.LoadInt32(&connected) == atomic.LoadInt32(&disconnected) &&
+			atomic.LoadInt32(&disconnected) == int32(nclients) {
+			action = Shutdown
+		}
+		return
+	}
+	events.Data = func(c *Conn, in *ringbuffer.RingBuffer) (out []byte, action Action) {
+		buf := in.Bytes()
+		in.RetrieveAll()
+
+		// 只是为了测试， c.Send 不应该在此处使用
+		c.Send(buf)
+
+		return
+	}
+	events.Tick = func() (delay time.Duration, action Action) {
+		if atomic.LoadInt32(&started) == 0 {
+			for i := 0; i < nclients; i++ {
+				go startClient(network, addr, nloops)
+			}
+			atomic.StoreInt32(&started, 1)
+		}
+		delay = time.Second / 5
+		return
+	}
+	var err error
+	if unix {
+		socket := strings.Replace(addr, ":", "socket", 1)
+		os.RemoveAll(socket)
+		defer os.RemoveAll(socket)
+		err = Serve(events, 0, network+"://"+addr, "unix://"+socket)
+	} else {
+		err = Serve(events, 0, network+"://"+addr)
+	}
+	if err != nil {
+		panic(err)
+	}
+}

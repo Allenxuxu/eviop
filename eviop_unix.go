@@ -414,6 +414,16 @@ func loopWake(s *server, l *loop, c *Conn) error {
 		return nil
 	}
 
+	var pf []func()
+	c.mu.Lock()
+	pf = c.pendingFunc
+	c.pendingFunc = []func(){}
+	c.mu.Unlock()
+
+	for _, f := range pf {
+		f()
+	}
+
 	if s.events.Data != nil {
 		var out []byte
 		out, c.action = s.events.Data(c, c.inBuffer)
