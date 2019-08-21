@@ -9,6 +9,7 @@ package eviop
 import (
 	"bufio"
 	"fmt"
+	"github.com/Allenxuxu/ringbuffer"
 	"io"
 	"math/rand"
 	"net"
@@ -65,10 +66,10 @@ func testServe(network, addr string, unix bool, nclients, nloops int, balance Lo
 	events.Serving = func(srv Server) (action Action) {
 		return
 	}
-	events.Opened = func(c *Conn) (opts Options, action Action) {
+	events.Opened = func(c *Conn) (out []byte, opts Options, action Action) {
 		c.SetContext(c)
 		atomic.AddInt32(&connected, 1)
-		c.Send([]byte("sweetness\r\n"))
+		out = []byte("sweetness\r\n")
 		opts.TCPKeepAlive = time.Minute * 5
 		if c.LocalAddr() == nil {
 			panic("nil local addr")
@@ -89,8 +90,9 @@ func testServe(network, addr string, unix bool, nclients, nloops int, balance Lo
 		}
 		return
 	}
-	events.Data = func(c *Conn) (action Action) {
-		c.Send(c.ReadAll())
+	events.Data = func(c *Conn, in *ringbuffer.RingBuffer) (out []byte, action Action) {
+		out = in.Bytes()
+		in.RetrieveAll()
 		return
 	}
 	events.Tick = func() (delay time.Duration, action Action) {
@@ -215,7 +217,7 @@ func testShutdown(network, addr string) {
 	var count int
 	var clients int64
 	var N = 10
-	events.Opened = func(c *Conn) (opts Options, action Action) {
+	events.Opened = func(c *Conn) (out []byte, opts Options, action Action) {
 		atomic.AddInt64(&clients, 1)
 		return
 	}

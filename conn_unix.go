@@ -34,7 +34,7 @@ type Conn struct {
 	loop       *loop       // connected loop
 }
 
-func (c *Conn) Send(buf []byte) {
+func (c *Conn) send(buf []byte) {
 	n, err := syscall.Write(c.fd, buf)
 	if err != nil {
 		_, _ = c.outBuffer.Write(buf)
@@ -45,17 +45,6 @@ func (c *Conn) Send(buf []byte) {
 		_, _ = c.outBuffer.Write(buf[n:])
 	}
 }
-func (c *Conn) Read(buf []byte) (int, error) { return c.inBuffer.Read(buf) }
-func (c *Conn) ReadAll() []byte {
-	ret := c.inBuffer.Bytes()
-	c.inBuffer.RetrieveAll()
-	return ret
-}
-func (c *Conn) ReadLength() int             { return c.inBuffer.Length() }
-func (c *Conn) Peek(n int) ([]byte, []byte) { return c.inBuffer.Peek(n) }
-func (c *Conn) PeekAll() ([]byte, []byte)   { return c.inBuffer.PeekAll() }
-func (c *Conn) Retrieve(n int)              { c.inBuffer.Retrieve(n) }
-func (c *Conn) RetrieveAll()                { c.inBuffer.RetrieveAll() }
 
 func (c *Conn) Context() interface{}       { return c.ctx }
 func (c *Conn) SetContext(ctx interface{}) { c.ctx = ctx }

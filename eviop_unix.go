@@ -25,7 +25,8 @@ import (
 )
 
 var errClosing = errors.New("closing")
-var errCloseConns = errors.New("close conns")
+
+//var errCloseConns = errors.New("close conns")
 
 type server struct {
 	events      Events             // user events
@@ -315,20 +316,20 @@ func loopUDPRead(s *server, l *loop, lnidx, fd int) error {
 			sa6 = *sa
 		}
 		c := &Conn{
-			outBuffer: ringbuffer.New(1024),
-			inBuffer:  ringbuffer.New(1024),
+			//outBuffer: ringbuffer.New(1024),
+			inBuffer: ringbuffer.New(1024),
 		}
 		c.addrIndex = lnidx
 		c.localAddr = s.lns[lnidx].lnaddr
 		c.remoteAddr = internal.SockaddrToAddr(&sa6)
 
 		_, _ = c.inBuffer.Write(l.packet[:n])
-		action := s.events.Data(c)
-		if c.outBuffer.Length() > 0 {
+		out, action := s.events.Data(c, c.inBuffer)
+		if len(out) > 0 {
 			if s.events.PreWrite != nil {
 				s.events.PreWrite()
 			}
-			_ = syscall.Sendto(fd, c.outBuffer.Bytes(), 0, sa)
+			_ = syscall.Sendto(fd, out, 0, sa)
 		}
 		switch action {
 		case Shutdown:
@@ -345,11 +346,16 @@ func loopOpened(s *server, l *loop, c *Conn) error {
 	c.remoteAddr = internal.SockaddrToAddr(c.sa)
 	if s.events.Opened != nil {
 		var opts Options
-		opts, c.action = s.events.Opened(c)
+		var out []byte
+		out, opts, c.action = s.events.Opened(c)
 		if opts.TCPKeepAlive > 0 {
 			if _, ok := s.lns[c.lnidx].ln.(*net.TCPListener); ok {
 				_ = internal.SetKeepAlive(c.fd, int(opts.TCPKeepAlive/time.Second))
 			}
+		}
+
+		if len(out) > 0 {
+			c.send(out)
 		}
 	}
 	if c.outBuffer.Length() == 0 {
@@ -409,7 +415,12 @@ func loopWake(s *server, l *loop, c *Conn) error {
 	}
 
 	if s.events.Data != nil {
-		c.action = s.events.Data(c)
+		var out []byte
+		out, c.action = s.events.Data(c, c.inBuffer)
+		if len(out) > 0 {
+			c.send(out)
+		}
+
 		if c.outBuffer.Length() != 0 {
 			l.poll.ModReadWrite(c.fd)
 		}
@@ -430,7 +441,12 @@ func loopRead(s *server, l *loop, c *Conn) error {
 
 	_, _ = c.inBuffer.Write(l.packet[:n])
 	if s.events.Data != nil {
-		c.action = s.events.Data(c)
+		var out []byte
+		out, c.action = s.events.Data(c, c.inBuffer)
+
+		if len(out) > 0 {
+			c.send(out)
+		}
 	}
 	if c.outBuffer.Length() != 0 {
 		l.poll.ModReadWrite(c.fd)

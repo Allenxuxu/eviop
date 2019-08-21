@@ -9,6 +9,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/Allenxuxu/ringbuffer"
 	"log"
 	"strings"
 	"time"
@@ -39,16 +40,16 @@ func main() {
 		}
 		return
 	}
-	events.Data = func(c *eviop.Conn) (action eviop.Action) {
-		first, end := c.PeekAll()
+	events.Data = func(c *eviop.Conn, in *ringbuffer.RingBuffer) (out []byte, action eviop.Action) {
+		first, end := in.PeekAll()
 		if trace {
 			log.Printf("%s", strings.TrimSpace(string(first)+string(end)))
 		}
-		c.Send(first)
+		out = first
 		if len(end) > 0 {
-			c.Send(end)
+			out = append(out, end...)
 		}
-		c.RetrieveAll()
+		in.RetrieveAll()
 		return
 	}
 	scheme := "tcp"

@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/Allenxuxu/ringbuffer"
 )
 
 // Action is an action that occurs after the completion of an event.
@@ -78,7 +80,7 @@ type Events struct {
 	// it's local and remote address.
 	// Use the out return value to write data to the connection.
 	// The opts return value is used to set connection options.
-	Opened func(c *Conn) (opts Options, action Action)
+	Opened func(c *Conn) (out []byte, opts Options, action Action)
 	// Closed fires when a connection has closed.
 	// The err parameter is the last known connection error.
 	Closed func(c *Conn, err error) (action Action)
@@ -87,7 +89,7 @@ type Events struct {
 	// Data fires when a connection sends the server data.
 	// The in parameter is the incoming data.
 	// Use the out return value to write data to the connection.
-	Data func(c *Conn) (action Action)
+	Data func(c *Conn, in *ringbuffer.RingBuffer) (out []byte, action Action)
 	// Tick fires immediately after the server starts and will fire again
 	// following the duration specified by the delay return value.
 	Tick func() (delay time.Duration, action Action)
