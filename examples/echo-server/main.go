@@ -9,12 +9,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/Allenxuxu/ringbuffer"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/Allenxuxu/eviop"
+	"github.com/Allenxuxu/ringbuffer"
 )
 
 func main() {

@@ -122,7 +122,7 @@ func Serve(events Events, waitTimeout time.Duration, addr ...string) error {
 
 		ln.network, ln.addr, ln.opts = parseAddr(addr)
 		if ln.network == "unix" {
-			os.RemoveAll(ln.addr)
+			_ = os.RemoveAll(ln.addr)
 		}
 		var err error
 		if ln.network == "udp" {

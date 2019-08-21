@@ -9,7 +9,6 @@ package eviop
 import (
 	"bufio"
 	"fmt"
-	"github.com/Allenxuxu/ringbuffer"
 	"io"
 	"math/rand"
 	"net"
@@ -19,6 +18,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/Allenxuxu/ringbuffer"
 )
 
 func TestServe(t *testing.T) {
