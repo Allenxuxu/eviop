@@ -63,13 +63,13 @@ func (l *loop) loopNote(s *server, note interface{}) error {
 		delay, action := s.events.Tick()
 		switch action {
 		case None:
+			s.tch = delay
+			l.tw.AfterFunc(s.tch, func() {
+				_ = l.poll.Trigger(time.Duration(0))
+			})
 		case Shutdown:
 			err = errClosing
 		}
-		s.tch = delay
-		l.tw.AfterFunc(s.tch, func() {
-			_ = l.poll.Trigger(time.Duration(0))
-		})
 	case error: // shutdown
 		err = v
 	case *Conn:
