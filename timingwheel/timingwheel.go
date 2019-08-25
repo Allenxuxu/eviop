@@ -24,7 +24,7 @@ type TimingWheel struct {
 	// NOTE: This field may be updated and read concurrently, through Add().
 	overflowWheel unsafe.Pointer // type: *TimingWheel
 
-	workerPoolSize int64
+	//workerPoolSize int64
 
 	exitC     chan struct{}
 	waitGroup waitGroupWrapper
@@ -115,7 +115,9 @@ func (tw *TimingWheel) addOrRun(t *Timer) {
 
 		// Like the standard time.AfterFunc (https://golang.org/pkg/time/#AfterFunc),
 		// always execute the timer's task in its own goroutine.
-		go t.task()
+		//go t.task()
+		// 内部使用，减少协程
+		t.task()
 	}
 }
 
