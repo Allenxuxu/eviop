@@ -19,7 +19,7 @@ import (
 
 	"github.com/Allenxuxu/eviop/internal"
 	"github.com/Allenxuxu/eviop/timingwheel"
-	reuseport "github.com/kavu/go_reuseport"
+	reuseport "github.com/libp2p/go-reuseport"
 )
 
 var errClosing = errors.New("closing")
