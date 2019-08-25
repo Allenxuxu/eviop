@@ -11,6 +11,7 @@ package eviop
 import (
 	"errors"
 	"net"
+	"os"
 	"runtime"
 	"sync"
 	"syscall"
@@ -103,7 +104,7 @@ func serve(events Events, waitTimeout time.Duration, listeners []*listener) erro
 		// close loops and all outstanding connections
 		for _, l := range s.loops {
 			for _, c := range l.fdconns {
-				_ = loopCloseConn(s, l, c, nil)
+				_ = l.loopCloseConn(s, c, nil)
 			}
 			_ = l.poll.Close()
 			l.tw.Stop()
@@ -129,9 +130,27 @@ func serve(events Events, waitTimeout time.Duration, listeners []*listener) erro
 	// start loops in background
 	s.wg.Add(len(s.loops))
 	for _, l := range s.loops {
-		go loopRun(s, l)
+		go l.loopRun(s)
 	}
 	return nil
+}
+
+func (ln *listener) close() {
+	if ln.fd != 0 {
+		_ = syscall.Close(ln.fd)
+	}
+	if ln.f != nil {
+		_ = ln.f.Close()
+	}
+	if ln.ln != nil {
+		_ = ln.ln.Close()
+	}
+	if ln.pconn != nil {
+		_ = ln.pconn.Close()
+	}
+	if ln.network == "unix" {
+		_ = os.RemoveAll(ln.addr)
+	}
 }
 
 // system takes the net listener and detaches it from it's parent

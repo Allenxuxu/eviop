@@ -10,7 +10,6 @@ package eviop
 
 import (
 	"net"
-	"os"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -29,7 +28,7 @@ type loop struct {
 	tw      *timingwheel.TimingWheel
 }
 
-func closeTimeoutConn(s *server, l *loop, c *Conn) func() {
+func (l *loop) closeTimeoutConn(s *server, c *Conn) func() {
 	return func() {
 		now := time.Now()
 		intervals := now.Sub(c.getActiveTime())
@@ -37,12 +36,12 @@ func closeTimeoutConn(s *server, l *loop, c *Conn) func() {
 			c.toClose.Set(true)
 			c.Wake()
 		} else {
-			l.tw.AfterFunc(s.waitTimeout-intervals, closeTimeoutConn(s, l, c))
+			l.tw.AfterFunc(s.waitTimeout-intervals, l.closeTimeoutConn(s, c))
 		}
 	}
 }
 
-func loopCloseConn(s *server, l *loop, c *Conn, err error) error {
+func (l *loop) loopCloseConn(s *server, c *Conn, err error) error {
 	atomic.AddInt32(&l.count, -1)
 	delete(l.fdconns, c.fd)
 	_ = syscall.Close(c.fd)
@@ -57,7 +56,7 @@ func loopCloseConn(s *server, l *loop, c *Conn, err error) error {
 	return nil
 }
 
-func loopNote(s *server, l *loop, note interface{}) error {
+func (l *loop) loopNote(s *server, note interface{}) error {
 	var err error
 	switch v := note.(type) {
 	case time.Duration:
@@ -75,12 +74,12 @@ func loopNote(s *server, l *loop, note interface{}) error {
 		if l.fdconns[v.fd] != v {
 			return nil // ignore stale wakes
 		}
-		return loopWake(s, l, v)
+		return l.loopWake(s, v)
 	}
 	return err
 }
 
-func loopRun(s *server, l *loop) {
+func (l *loop) loopRun(s *server) {
 	defer func() {
 		//fmt.Println("-- loop stopped --", l.idx)
 		s.signalShutdown()
@@ -88,29 +87,29 @@ func loopRun(s *server, l *loop) {
 	}()
 
 	if l.idx == 0 && s.events.Tick != nil {
-		go loopTicker(s, l)
+		go l.loopTicker(s)
 	}
 
 	//fmt.Println("-- loop started --", l.idx)
 	_ = l.poll.Wait(func(fd int, note interface{}) error {
 		if fd == 0 {
-			return loopNote(s, l, note)
+			return l.loopNote(s, note)
 		}
 		c := l.fdconns[fd]
 		switch {
 		case c == nil:
-			return loopAccept(s, l, fd)
+			return l.loopAccept(s, fd)
 		case !c.opened:
-			return loopOpened(s, l, c)
+			return l.loopOpened(s, c)
 		case c.outBuffer.Length() > 0:
-			return loopWrite(s, l, c)
+			return l.loopWrite(s, c)
 		default:
-			return loopRead(s, l, c)
+			return l.loopRead(s, c)
 		}
 	})
 }
 
-func loopTicker(s *server, l *loop) {
+func (l *loop) loopTicker(s *server) {
 	for {
 		if err := l.poll.Trigger(time.Duration(0)); err != nil {
 			break
@@ -119,7 +118,7 @@ func loopTicker(s *server, l *loop) {
 	}
 }
 
-func loopAccept(s *server, l *loop, fd int) error {
+func (l *loop) loopAccept(s *server, fd int) error {
 	for i, ln := range s.lns {
 		if ln.fd == fd {
 			if len(s.loops) > 1 {
@@ -142,7 +141,7 @@ func loopAccept(s *server, l *loop, fd int) error {
 				}
 			}
 			if ln.pconn != nil {
-				return loopUDPRead(s, l, i, fd)
+				return l.loopUDPRead(s, i, fd)
 			}
 			nfd, sa, err := syscall.Accept(fd)
 			if err != nil {
@@ -168,7 +167,7 @@ func loopAccept(s *server, l *loop, fd int) error {
 			atomic.AddInt32(&l.count, 1)
 
 			if s.waitTimeout > 0 {
-				l.tw.AfterFunc(s.waitTimeout, closeTimeoutConn(s, l, c))
+				l.tw.AfterFunc(s.waitTimeout, l.closeTimeoutConn(s, c))
 			}
 
 			break
@@ -177,7 +176,7 @@ func loopAccept(s *server, l *loop, fd int) error {
 	return nil
 }
 
-func loopUDPRead(s *server, l *loop, lnidx, fd int) error {
+func (l *loop) loopUDPRead(s *server, lnidx, fd int) error {
 	n, sa, err := syscall.Recvfrom(fd, l.packet, 0)
 	if err != nil || n == 0 {
 		return nil
@@ -222,7 +221,7 @@ func loopUDPRead(s *server, l *loop, lnidx, fd int) error {
 	return nil
 }
 
-func loopOpened(s *server, l *loop, c *Conn) error {
+func (l *loop) loopOpened(s *server, c *Conn) error {
 	c.opened = true
 	c.addrIndex = c.lnidx
 	c.localAddr = s.lns[c.lnidx].lnaddr
@@ -244,10 +243,10 @@ func loopOpened(s *server, l *loop, c *Conn) error {
 	if c.outBuffer.Length() == 0 {
 		l.poll.ModRead(c.fd)
 	}
-	return handlerAction(s, l, c)
+	return l.handlerAction(s, c)
 }
 
-func loopWrite(s *server, l *loop, c *Conn) error {
+func (l *loop) loopWrite(s *server, c *Conn) error {
 	if s.events.PreWrite != nil {
 		s.events.PreWrite()
 	}
@@ -258,7 +257,7 @@ func loopWrite(s *server, l *loop, c *Conn) error {
 		if err == syscall.EAGAIN {
 			return nil
 		}
-		return loopCloseConn(s, l, c, err)
+		return l.loopCloseConn(s, c, err)
 	}
 	c.outBuffer.Retrieve(n)
 
@@ -268,7 +267,7 @@ func loopWrite(s *server, l *loop, c *Conn) error {
 			if err == syscall.EAGAIN {
 				return nil
 			}
-			return loopCloseConn(s, l, c, err)
+			return l.loopCloseConn(s, c, err)
 		}
 		c.outBuffer.Retrieve(n)
 	}
@@ -279,21 +278,21 @@ func loopWrite(s *server, l *loop, c *Conn) error {
 	return nil
 }
 
-func handlerAction(s *server, l *loop, c *Conn) error {
+func (l *loop) handlerAction(s *server, c *Conn) error {
 	switch c.action {
 	default:
 		c.action = None
 	case Close:
-		return loopCloseConn(s, l, c, nil)
+		return l.loopCloseConn(s, c, nil)
 	case Shutdown:
 		return errClosing
 	}
 	return nil
 }
 
-func loopWake(s *server, l *loop, c *Conn) error {
+func (l *loop) loopWake(s *server, c *Conn) error {
 	if c.toClose.Get() {
-		_ = loopCloseConn(s, l, c, nil)
+		_ = l.loopCloseConn(s, c, nil)
 		return nil
 	}
 
@@ -318,16 +317,16 @@ func loopWake(s *server, l *loop, c *Conn) error {
 			l.poll.ModReadWrite(c.fd)
 		}
 	}
-	return handlerAction(s, l, c)
+	return l.handlerAction(s, c)
 }
 
-func loopRead(s *server, l *loop, c *Conn) error {
+func (l *loop) loopRead(s *server, c *Conn) error {
 	n, err := syscall.Read(c.fd, l.packet)
 	if n == 0 || err != nil {
 		if err == syscall.EAGAIN {
 			return nil
 		}
-		return loopCloseConn(s, l, c, err)
+		return l.loopCloseConn(s, c, err)
 	}
 
 	c.setActiveTime(time.Now())
@@ -344,23 +343,5 @@ func loopRead(s *server, l *loop, c *Conn) error {
 	if c.outBuffer.Length() != 0 {
 		l.poll.ModReadWrite(c.fd)
 	}
-	return handlerAction(s, l, c)
-}
-
-func (ln *listener) close() {
-	if ln.fd != 0 {
-		_ = syscall.Close(ln.fd)
-	}
-	if ln.f != nil {
-		_ = ln.f.Close()
-	}
-	if ln.ln != nil {
-		_ = ln.ln.Close()
-	}
-	if ln.pconn != nil {
-		_ = ln.pconn.Close()
-	}
-	if ln.network == "unix" {
-		_ = os.RemoveAll(ln.addr)
-	}
+	return l.handlerAction(s, c)
 }
