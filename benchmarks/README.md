@@ -2,7 +2,7 @@
 
 压测工具:
 
-- [tcpkali](https://github.com/machinezone/tcpkali) for Echo
+-  [tcpkali](https://github.com/machinezone/tcpkali) for Echo
 
 | OS       | Package manager                         | Command                |
 | -------- | --------------------------------------- | ---------------------- |
@@ -13,12 +13,12 @@
 
 运行：
 
-```
+```bash
  ./bench.sh      
 ```
 
 ## 备注
 
-- 当前压测结果是在我的 MacBook Air 上运行得出
-- 压测程序运行在单线程模式下 (GOMAXPROC=1)
-- TCP 客户端（Ipv4）在本地（localhost）连接
+-  当前压测结果是在我的 MacBook Air 上运行得出
+-  压测程序运行在单线程模式下 (GOMAXPROC=1)
+-  TCP 客户端（Ipv4）在本地（localhost）连接
