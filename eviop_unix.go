@@ -27,17 +27,15 @@ var errClosing = errors.New("closing")
 //var errCloseConns = errors.New("close conns")
 
 type server struct {
-	events      Events             // user events
-	loops       []*loop            // all the loops
-	lns         []*listener        // all the listeners
-	wg          sync.WaitGroup     // loop close waitgroup
-	cond        *sync.Cond         // shutdown signaler
-	balance     LoadBalance        // load balancing method
-	accepted    uintptr            // accept counter
-	tch         chan time.Duration // ticker channel
+	events      Events         // user events
+	loops       []*loop        // all the loops
+	lns         []*listener    // all the listeners
+	wg          sync.WaitGroup // loop close waitgroup
+	cond        *sync.Cond     // shutdown signaler
+	balance     LoadBalance    // load balancing method
+	accepted    uintptr        // accept counter
+	tch         time.Duration
 	waitTimeout time.Duration
-
-	//ticktm   time.Time      // next tick time
 }
 
 // waitForShutdown waits for a signal to shutdown
@@ -70,7 +68,7 @@ func serve(events Events, waitTimeout time.Duration, listeners []*listener) erro
 	s.lns = listeners
 	s.cond = sync.NewCond(&sync.Mutex{})
 	s.balance = events.LoadBalance
-	s.tch = make(chan time.Duration)
+	s.tch = time.Duration(0)
 	s.waitTimeout = waitTimeout
 
 	//println("-- server starting")

@@ -66,7 +66,10 @@ func (l *loop) loopNote(s *server, note interface{}) error {
 		case Shutdown:
 			err = errClosing
 		}
-		s.tch <- delay
+		s.tch = delay
+		l.tw.AfterFunc(s.tch, func() {
+			_ = l.poll.Trigger(time.Duration(0))
+		})
 	case error: // shutdown
 		err = v
 	case *Conn:
@@ -87,7 +90,9 @@ func (l *loop) loopRun(s *server) {
 	}()
 
 	if l.idx == 0 && s.events.Tick != nil {
-		go l.loopTicker(s)
+		l.tw.AfterFunc(s.tch, func() {
+			_ = l.poll.Trigger(time.Duration(0))
+		})
 	}
 
 	//fmt.Println("-- loop started --", l.idx)
@@ -107,15 +112,6 @@ func (l *loop) loopRun(s *server) {
 			return l.loopRead(s, c)
 		}
 	})
-}
-
-func (l *loop) loopTicker(s *server) {
-	for {
-		if err := l.poll.Trigger(time.Duration(0)); err != nil {
-			break
-		}
-		time.Sleep(<-s.tch)
-	}
 }
 
 func (l *loop) loopAccept(s *server, fd int) error {
