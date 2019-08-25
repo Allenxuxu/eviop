@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/Allenxuxu/eviop/internal"
+	"github.com/Allenxuxu/eviop/timingwheel"
 	"github.com/Allenxuxu/ringbuffer"
-	"github.com/RussellLuo/timingwheel"
 )
 
 type loop struct {

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/Allenxuxu/eviop/internal"
-	"github.com/RussellLuo/timingwheel"
+	"github.com/Allenxuxu/eviop/timingwheel"
 	reuseport "github.com/kavu/go_reuseport"
 )
 
