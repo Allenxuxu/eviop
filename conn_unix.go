@@ -18,6 +18,7 @@ import (
 	"github.com/Allenxuxu/ringbuffer"
 )
 
+// Conn tcp连接
 type Conn struct {
 	fd          int                    // file descriptor
 	lnidx       int                    // listener index in the server lns list
@@ -37,6 +38,8 @@ type Conn struct {
 	mu          sync.Mutex
 }
 
+// Send 发送
+// 供非 loop 协程调用
 func (c *Conn) Send(buf []byte) {
 	c.mu.Lock()
 	c.pendingFunc = append(c.pendingFunc, func() {
@@ -64,13 +67,24 @@ func (c *Conn) send(buf []byte) {
 	}
 }
 
-func (c *Conn) Context() interface{}       { return c.ctx }
+// Context 获取 Context
+func (c *Conn) Context() interface{} { return c.ctx }
+
+// SetContext 设置 Context
 func (c *Conn) SetContext(ctx interface{}) { c.ctx = ctx }
-func (c *Conn) AddrIndex() int             { return c.addrIndex }
-func (c *Conn) LocalAddr() net.Addr        { return c.localAddr }
-func (c *Conn) RemoteAddr() net.Addr       { return c.remoteAddr }
-func (c *Conn) setActiveTime(t time.Time)  { atomic.SwapInt64(&c.activeTime, t.Unix()) }
-func (c *Conn) getActiveTime() time.Time   { return time.Unix(atomic.LoadInt64(&c.activeTime), 0) }
+
+// AddrIndex AddrIndex
+func (c *Conn) AddrIndex() int { return c.addrIndex }
+
+// LocalAddr LocalAddr
+func (c *Conn) LocalAddr() net.Addr { return c.localAddr }
+
+// RemoteAddr RemoteAddr
+func (c *Conn) RemoteAddr() net.Addr      { return c.remoteAddr }
+func (c *Conn) setActiveTime(t time.Time) { atomic.SwapInt64(&c.activeTime, t.Unix()) }
+func (c *Conn) getActiveTime() time.Time  { return time.Unix(atomic.LoadInt64(&c.activeTime), 0) }
+
+// Wake 唤醒 loop
 func (c *Conn) Wake() {
 	if c.loop != nil {
 		_ = c.loop.poll.Trigger(c)
