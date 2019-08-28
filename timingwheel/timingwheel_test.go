@@ -33,7 +33,7 @@ func TestTimingWheel_AfterFunc(t *testing.T) {
 			got := (<-exitC).Truncate(time.Millisecond)
 			min := start.Add(d).Truncate(time.Millisecond)
 
-			err := 100 * time.Millisecond
+			err := 1000 * time.Millisecond
 			if got.Before(min) || got.After(min.Add(err)) {
 				t.Errorf("NewTimer(%s) want [%s, %s], got %s", d, min, min.Add(err), got)
 			}
