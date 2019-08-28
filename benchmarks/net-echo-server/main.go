@@ -40,7 +40,7 @@ func main() {
 				if err != nil {
 					return
 				}
-				conn.Write(packet[:n])
+				_, _ = conn.Write(packet[:n])
 			}
 		}(id, conn)
 	}

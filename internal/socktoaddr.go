@@ -25,8 +25,8 @@ func SockaddrToAddr(sa syscall.Sockaddr) net.Addr {
 				zone = ifi.Name
 			}
 		}
-		if zone == "" && sa.ZoneId != 0 {
-		}
+		//if zone == "" && sa.ZoneId != 0 {
+		//}
 		a = &net.TCPAddr{
 			IP:   append([]byte{}, sa.Addr[:]...),
 			Port: sa.Port,
