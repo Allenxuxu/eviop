@@ -46,7 +46,7 @@ func (p *Poll) Close() error {
 // Trigger ...
 func (p *Poll) Trigger(note interface{}) error {
 	p.notes.Add(note)
-	_, err := syscall.Write(p.wfd, []byte{0, 0, 0, 0, 0, 0, 0, 1})
+	_, err := syscall.Write(p.wfd, []byte{1, 0, 0, 0, 0, 0, 0, 0})
 	return err
 }
 
@@ -59,11 +59,7 @@ func (p *Poll) Wait(iter func(fd int, note interface{}) error) error {
 		if err != nil && err != syscall.EINTR {
 			return err
 		}
-		if err := p.notes.ForEach(func(note interface{}) error {
-			return iter(0, note)
-		}); err != nil {
-			return err
-		}
+
 		for i := 0; i < n; i++ {
 			if fd := int(events[i].Fd); fd != p.wfd {
 				if err := iter(fd, nil); err != nil {
@@ -79,6 +75,12 @@ func (p *Poll) Wait(iter func(fd int, note interface{}) error) error {
 				}
 			}
 		}
+
+		if err := p.notes.ForEach(func(note interface{}) error {
+			return iter(0, note)
+		}); err != nil {
+			return err
+		}
 	}
 }
 
@@ -86,7 +88,7 @@ func (p *Poll) Wait(iter func(fd int, note interface{}) error) error {
 func (p *Poll) AddReadWrite(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_ADD, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN | syscall.EPOLLOUT,
+			Events: syscall.EPOLLIN | syscall.EPOLLPRI | syscall.EPOLLOUT,
 		},
 	); err != nil {
 		panic(err)
@@ -97,7 +99,7 @@ func (p *Poll) AddReadWrite(fd int) {
 func (p *Poll) AddRead(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_ADD, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN,
+			Events: syscall.EPOLLIN | syscall.EPOLLPRI,
 		},
 	); err != nil {
 		panic(err)
@@ -108,7 +110,7 @@ func (p *Poll) AddRead(fd int) {
 func (p *Poll) ModRead(fd int) {
 	if err := syscall.EpollCtl(p.fd, syscall.EPOLL_CTL_MOD, fd,
 		&syscall.EpollEvent{Fd: int32(fd),
-			Events: syscall.EPOLLIN,
+			Events: syscall.EPOLLIN | syscall.EPOLLPRI,
 		},
 	); err != nil {
 		panic(err)
