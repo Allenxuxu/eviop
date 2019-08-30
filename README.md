@@ -1,5 +1,6 @@
 # eviop 
 
+[![Github Actions](https://github.com/Allenxuxu/eviop/workflows/CI/badge.svg)](https://github.com/Allenxuxu/eviop/actions)
 [![LICENSE](https://img.shields.io/badge/LICENSE-MIT-blue)](https://github.com/Allenxuxu/eviop/blob/master/LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Allenxuxu/eviop)](https://goreportcard.com/report/github.com/Allenxuxu/eviop)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/8c65a000618048e3a453bb59a2207663)](https://app.codacy.com/app/Allenxuxu/eviop?utm_source=github.com&utm_medium=referral&utm_content=Allenxuxu/eviop&utm_campaign=Badge_Grade_Settings)
