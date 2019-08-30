@@ -12,9 +12,11 @@
 
 eviop 从 evio fork 而来，并且优化了些许，尽可能减少内存拷贝，性能更优。
 
-> 测试数据在 MacBook Air 上运行得出
-
+> 如下测试数据在 MacBook Air 上运行得出 （kqueue）
 ![image](benchmarks/out/echo.png)
+
+> 如下测试数据在 Ubuntu 18.04 上运行得出 （epoll）
+![image](benchmarks/out/epoll-echo.png)
 
 ## 安装
 
