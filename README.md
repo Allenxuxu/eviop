@@ -82,3 +82,9 @@ func main() {
 }
 
 ```
+
+## 相关文章
+
+- [evio源码解析](https://note.mogutou.xyz/articles/2019/08/06/1565053139105.html)
+- [Golang 网络库 evio 一些问题/bug和思考](https://note.mogutou.xyz/articles/2019/08/15/1565876205121.html)
+- [gev: Go 实现基于 Reactor 模式的非阻塞 TCP 网络库](https://note.mogutou.xyz/articles/2019/09/19/1568896693634.html)
